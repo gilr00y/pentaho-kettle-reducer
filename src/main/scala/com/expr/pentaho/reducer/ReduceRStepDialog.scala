@@ -25,7 +25,6 @@ class ReducerStepDialog(parent: Shell, m: Object, transMeta: TransMeta, stepName
   val margin = Const.MARGIN
 
   def open(): String = {
-    logError("HELLO! ReduceRunning!")
     val parent = getParent()
     val display = parent.getDisplay()
 

@@ -21,65 +21,70 @@ class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta:
 
   override def processRow(smi: StepMetaInterface, sdi: StepDataInterface): Boolean = {
     val meta = smi.asInstanceOf[ReducerStepMeta]
-    val rowMeta = Option(getInputRowMeta()).getOrElse(new RowMeta)
-    logError("ROW META:")
-    logError(rowMeta.toString())
+    val data = sdi.asInstanceOf[ReducerStepData]
     
-    // Not sure what I'm supposed to do with this...
-    val smiFields = smi.getFields(rowMeta, getStepname(), null, null, null)
-    logError("SMI FIELDS")
-    logError(smiFields.toString())
-    //
+    val row: Array[Object] = getRow()
 
-    // Core row processing loop.
-    try {
-      while (true) {
-        val row: Array[Object] = getRow()
-        logError("RETRIEVE ROW")
-        logError(row.toString())
-        putRow(rowMeta, row)
-        incrementLinesOutput()
-      }
-    } catch {
-      case e: Exception => logError(e.toString())
+    if (row == null) {
+      logBasic("Row is NULL, setting state to DONE")
+      setOutputDone()
+      return false
     }
-    // End row processing
-    setOutputDone()
-    true
+
+    // Get inputRowMeta
+    val rowMeta = Option(getInputRowMeta()).getOrElse(new RowMeta)
+    if (first) {
+      first=false
+      // Apply new rowMeta entry
+      smi.getFields(rowMeta, getStepname(), null, null, null)
+    }
+    var jgIdx: Int = rowMeta.indexOfValue("jg-test0")
+    logError("JG IDX: " +jgIdx.toString())
+
+    // Init output row with additional element
+    val outRow: Array[Object] = RowDataUtil.resizeArray(row, rowMeta.size())
+    // Copy old values to output row
+    logBasic("IN ROW SIZE: " + row.length.toString())
+    logBasic("OUT ROW SIZE: " + outRow.length.toString())
+    // for(i <- rowMeta.size() until row.length){
+    outRow(jgIdx) = "Test OK"
+    // }
+
+    // outRow(row.length) = rowMeta.getValueMeta(outRow.length).convertData(.conversionMeta[i], value)
+    // Core row processing loop.
+    putRow(rowMeta, outRow)
+    incrementLinesOutput()
+    return true
   }
 
   override def dispose(smi: StepMetaInterface, sdi: StepDataInterface): Unit = {
-    logError("DISPOSING in ReducerStep")
     super.dispose(smi, sdi)
   }
 }
 
 
 class ReducerStepMeta extends BaseStepMeta with StepMetaInterface {
-  // If Kettle wants to live dangerously, I will, too!
-  var token: String = ""
-  var projectId: String = ""
-  var queue: String = ""
-  var outputField: String = "message"
+  var outputField: String = "jg-test0"
 
-  // def valueMeta() = new ValueMeta(outputField, ValueMetaInterface.TYPE_STRING)
+  def valueMeta() = new ValueMeta(outputField, ValueMetaInterface.TYPE_STRING)
 
   def getStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta: TransMeta, trans: Trans) =
     new ReducerStep(smi, sdi, copyNr, transMeta, trans)
 
   def getStepData() = new ReducerStepData
 
-  def setDefault(): Unit = { token = ""; outputField = "message" }
+  def setDefault(): Unit = { outputField = "jg-test0" }
 
   // override def check(remarks: JList[CheckResultInterface], meta: TransMeta, stepMeta: StepMeta, prev: RowMetaInterface, input: Array[String], output: Array[String], info: RowMetaInterface) = {
   //   // TODO: Implement a check
   // }
 
-  // override def getFields(inputRowMeta: RowMetaInterface, name: String, info: Array[RowMetaInterface], nextStep: StepMeta, space: VariableSpace): Unit = {
-  //   val v = valueMeta()
-  //   v.setOrigin(name)
-  //   inputRowMeta.addValueMeta(v)
-  // }
+  override def getFields(inputRowMeta: RowMetaInterface, name: String, info: Array[RowMetaInterface], nextStep: StepMeta, space: VariableSpace): Unit = {
+    val v = valueMeta()
+    v.setOrigin(name)
+    inputRowMeta.addValueMeta(v)
+    logBasic("outgoing valueMeta:" + inputRowMeta.toString())
+  }
 
   // override def getXML() =
   //   s"<settings><token>${token}</token><projectId>${projectId}</projectId><queue>${queue}</queue><outputField>${outputField}</outputField></settings>"
