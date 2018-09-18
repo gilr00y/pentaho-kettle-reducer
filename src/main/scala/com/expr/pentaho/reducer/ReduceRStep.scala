@@ -1,6 +1,7 @@
 package com.expr.pentaho.reducer
 
 import java.util.{ List => JList, Map => JMap }
+import scala.math
 
 import org.pentaho.di.core.{ CheckResultInterface, Counter }
 import org.pentaho.di.core.row._
@@ -9,59 +10,85 @@ import org.pentaho.di.repository.{ ObjectId, Repository }
 import org.pentaho.di.trans._
 import org.pentaho.di.trans.step._
 
-class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta: TransMeta, trans: Trans) extends BaseStep(smi, sdi, copyNr, transMeta, trans) {
-  def valOrNull(s: String) = if (s.isEmpty) null else s
+class ReduceRule() {
 
-  // Dummy wrapper for logging.
+}
+
+object Reducer {
+  def go(rowMeta: RowMetaInterface, agg: Array[Object], nxt: Array[Object]): Array[Array[Object]] = {
+    val freqMaxIdx: Int = rowMeta.indexOfValue("max_freq")
+    val freqMinIdx: Int = rowMeta.indexOfValue("min_freq")
+
+    var combined: Boolean = false
+    if((rowMeta.getInteger(nxt, freqMinIdx) <= rowMeta.getInteger(agg, freqMaxIdx)) & (rowMeta.getInteger(nxt, freqMaxIdx) >= rowMeta.getInteger(agg, freqMinIdx))) {
+      combined = true
+      val min: java.lang.Double = math.min(rowMeta.getInteger(agg, freqMinIdx), rowMeta.getInteger(nxt, freqMinIdx))
+      val max: java.lang.Double = math.max(rowMeta.getInteger(agg, freqMaxIdx), rowMeta.getInteger(nxt, freqMaxIdx))
+      agg(freqMinIdx) = min
+      agg(freqMaxIdx) = max
+      return Array(agg)
+    }
+    Array(agg, nxt)
+  }
+}
+
+class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta: TransMeta, trans: Trans) extends BaseStep(smi, sdi, copyNr, transMeta, trans) {
+
+  def valOrNull(s: String) = if (s.isEmpty) null else s
   override def init(smi: StepMetaInterface, sdi: StepDataInterface) = {
-    logBasic("Initting RecuderStep < BaseStep")
     super.init(smi, sdi)
   }
-
 
   override def processRow(smi: StepMetaInterface, sdi: StepDataInterface): Boolean = {
     val meta = smi.asInstanceOf[ReducerStepMeta]
     val data = sdi.asInstanceOf[ReducerStepData]
-    
-    val row: Array[Object] = getRow()
 
-    if (row == null) {
-      logBasic("Row is NULL, setting state to DONE")
-      setOutputDone()
-      return false
-    }
-
-    // Get inputRowMeta
+    var lastRow: Array[Object] = getRow() // First row in the group.. need to initialize with something to retrieve `rowMeta`
     val rowMeta = Option(getInputRowMeta()).getOrElse(new RowMeta)
-    if (first) {
-      first=false
-      // Apply new rowMeta entry
-      smi.getFields(rowMeta, getStepname(), null, null, null)
+    val metaList = rowMeta.getValueMetaList()
+
+    val groupBys = Array("_id")
+    while(true) {
+      if(first) {
+        first = false
+        // End loop here... nothing to reduce!
+      } else {
+        var nextRow = getRow()
+        if(nextRow != null) {
+          var grp = true
+          
+          // Check if all group-by conditions are met
+          for (i <- 0 until groupBys.length) {
+            val gbIdx = rowMeta.indexOfValue(groupBys(i))
+            grp &= rowMeta.getString(lastRow, gbIdx) == rowMeta.getString(nextRow, gbIdx)
+          }
+          if(grp) {
+            val aggArr: Array[Array[Object]] = Reducer.go(rowMeta, lastRow, nextRow)
+            if(aggArr.length > 1) {
+              putRow(rowMeta, aggArr(0))
+              lastRow = aggArr(1)
+            } else {
+              lastRow = aggArr(0)
+            }
+          } else {
+            // Write lastRow
+            putRow(rowMeta, lastRow)
+            lastRow = nextRow
+            // 
+          }
+        } else {
+          setOutputDone()
+          return false
+        }
+      }
     }
-    var jgIdx: Int = rowMeta.indexOfValue("jg-test0")
-    logError("JG IDX: " +jgIdx.toString())
-
-    // Init output row with additional element
-    val outRow: Array[Object] = RowDataUtil.resizeArray(row, rowMeta.size())
-    // Copy old values to output row
-    logBasic("IN ROW SIZE: " + row.length.toString())
-    logBasic("OUT ROW SIZE: " + outRow.length.toString())
-    // for(i <- rowMeta.size() until row.length){
-    outRow(jgIdx) = "Test OK"
-    // }
-
-    // outRow(row.length) = rowMeta.getValueMeta(outRow.length).convertData(.conversionMeta[i], value)
-    // Core row processing loop.
-    putRow(rowMeta, outRow)
-    incrementLinesOutput()
-    return true
+    false
   }
 
   override def dispose(smi: StepMetaInterface, sdi: StepDataInterface): Unit = {
     super.dispose(smi, sdi)
   }
 }
-
 
 class ReducerStepMeta extends BaseStepMeta with StepMetaInterface {
   var outputField: String = "jg-test0"
