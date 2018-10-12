@@ -1,1 +1,2 @@
 ensimeIgnoreScalaMismatch in ThisBuild := true
+

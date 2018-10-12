@@ -15,7 +15,6 @@ import org.apache.commons.vfs2.FileSystemException
 class ReducerStepDialog(parent: Shell, m: Object, transMeta: TransMeta, stepName: String)
     extends BaseStepDialog(parent, m.asInstanceOf[BaseStepMeta], transMeta, stepName)
     with StepDialogInterface {
-
   this.shell = parent
 
   private[this] val stepMeta = m.asInstanceOf[StepMetaInterface]
@@ -29,47 +28,42 @@ class ReducerStepDialog(parent: Shell, m: Object, transMeta: TransMeta, stepName
     val display = parent.getDisplay()
 
     shell = new Shell(parent, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX | SWT.MIN )
-    shell.setText("IronIO Input")
+    shell.setText("Reducer")
     props.setLook(shell)
     setShellImage(shell, stepMeta)
+
 
     val layout = new FormLayout
     layout.marginWidth = Const.FORM_MARGIN
     layout.marginHeight = Const.FORM_MARGIN
     shell.setLayout(layout)
     val stepName = makeRow(shell, "Step Name:", stepname, None)
-    // val projectId = makeRow(shell, "IronMQ Project Id (blank to locate in .json config):", ourMeta.projectId, Some(token))
-    //   val queue = makeRow(shell, "IronMQ Queue Name (required):", ourMeta.queue, Some(projectId))
-    //   val outputField = makeRow(shell, "Output field name:", ourMeta.outputField, Some(queue))
+    val groupBy = makeRow(shell, "Group By:", ourMeta.groupBy, Some(stepName))
 
-    val okButton = new Button(shell, SWT.PUSH)
+    val okButton = new Button(shell, SWT.PUSH | SWT.RIGHT | SWT.SHIFT)
     okButton.setText("OK")
     okButton.addListener(SWT.Selection, new Listener() {
       def handleEvent(e: Event): Unit = {
-        // if (stepName.getText.nonEmpty && queue.getText.nonEmpty) {
-        stepname = stepName.getText
-        // ourMeta.projectId = projectId.getText
-        // ourMeta.queue = queue.getText
-        // ourMeta.outputField = outputField.getText
-        ourMeta.setChanged(true)
-
+        if (stepName.getText.nonEmpty && groupBy.getText.nonEmpty) {
+          stepname = stepName.getText
+          ourMeta.groupBy = groupBy.getText
+          ourMeta.setChanged(true)
+        }
         shell.dispose()
       }
     })
 
-  //   val cancelButton = new Button(shell, SWT.PUSH)
-  //   cancelButton.setText("Cancel")
-  //   cancelButton.addListener(SWT.Selection, new Listener() {
-  //     def handleEvent(e: Event): Unit = {
-  //       stepname = null
-  //       ourMeta.setChanged(false)
-  //       shell.dispose()
-  //     }
-  //   })
-
-  //   setButtonPositions(Array(okButton, cancelButton), margin, outputField)
-  //   setSize()
-
+    val cancelButton = new Button(shell, SWT.PUSH)
+    cancelButton.setText("Cancel")
+    cancelButton.addListener(SWT.Selection, new Listener() {
+      def handleEvent(e: Event): Unit = {
+        stepname = null
+        ourMeta.setChanged(false)
+        shell.dispose()
+      }
+    })
+    setButtonPositions(Array(okButton, cancelButton), margin, groupBy)
+    setSize()
     shell.pack()
     shell.open()
     while ( !shell.isDisposed() ) {
