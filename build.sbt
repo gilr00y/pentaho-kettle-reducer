@@ -20,5 +20,6 @@ libraryDependencies ++= Seq(
   "pentaho-kettle"       % "kettle-engine"                      % kettleVersion % "provided",
   "pentaho-kettle"       % "kettle-core"                        % kettleVersion % "provided",
   "pentaho-kettle"       % "kettle-ui-swt"                      % kettleVersion % "provided",
-  "org.eclipse.swt"      % "org.eclipse.swt.win32.win32.x86_64" % "4.3"         % "provided"
+  "org.eclipse.swt"      % "org.eclipse.swt.win32.win32.x86_64" % "4.3"         % "provided",
+  "com.typesafe.akka"   %% "akka-actor" % "2.5.17"
 )

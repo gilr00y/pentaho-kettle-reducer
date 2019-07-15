@@ -3,13 +3,10 @@ package com.expr.pentaho.reducer
 import org.eclipse.swt.SWT
 import org.eclipse.swt.layout._
 import org.eclipse.swt.widgets._
-
 import org.pentaho.di.core.Const
 import org.pentaho.di.trans._
 import org.pentaho.di.trans.step._
 import org.pentaho.di.ui.trans.step._
-
-import org.apache.commons.vfs2.FileSystemException
 
 
 class ReducerStepDialog(parent: Shell, m: Object, transMeta: TransMeta, stepName: String)
@@ -31,7 +28,6 @@ class ReducerStepDialog(parent: Shell, m: Object, transMeta: TransMeta, stepName
     shell.setText("Reducer")
     props.setLook(shell)
     setShellImage(shell, stepMeta)
-
 
     val layout = new FormLayout
     layout.marginWidth = Const.FORM_MARGIN

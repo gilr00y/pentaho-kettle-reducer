@@ -2,14 +2,9 @@ package com.expr.pentaho.reducer
 
 import java.util.{List => JList, Map => JMap}
 
+import org.pentaho.di.core.Counter
 import org.pentaho.di.core.database.DatabaseMeta
-
-import scala.math
-import org.pentaho.di.core.{CheckResultInterface, Counter}
 import org.pentaho.di.core.row._
-import org.pentaho.di.core.database.DatabaseMeta
-import org.pentaho.di.core.variables.VariableSpace
-import org.pentaho.di.repository.{ObjectId, Repository}
 import org.pentaho.di.trans._
 import org.pentaho.di.trans.step._
 
@@ -44,7 +39,8 @@ object Reducer {
   }
 }
 
-class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta: TransMeta, trans: Trans) extends BaseStep(smi, sdi, copyNr, transMeta, trans) {
+class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta: TransMeta, trans: Trans)
+  extends BaseStep(smi, sdi, copyNr, transMeta, trans) {
 
   def valOrNull(s: String) = if (s.isEmpty) null else s
   override def init(smi: StepMetaInterface, sdi: StepDataInterface) = {
@@ -58,13 +54,17 @@ class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta:
     val rowMeta = Option(getInputRowMeta()).getOrElse(new RowMeta)
     val metaList = rowMeta.getValueMetaList()
 
+    // Only one `groupBy` now, so we force the Array.
     val groupBys = Array(meta.groupBy)
+    // NOTE: Kettle already calls #processRow repeatedly in a `while` loop,
+    //       but we are implementing our own to
+    //       simplify inter-row state management.
     while(true) {
       if(first) {
         first = false
         // End loop here... nothing to reduce!
       } else {
-        var nextRow = getRow()
+        val nextRow = getRow()
         if(nextRow != null) {
           var grp = true
           
@@ -74,6 +74,7 @@ class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta:
             grp &= rowMeta.getString(lastRow, gbIdx) == rowMeta.getString(nextRow, gbIdx)
           }
           if(grp) {
+            // Now apply grouping transforms
             val aggArr: Array[Array[Object]] = Reducer.go(rowMeta, lastRow, nextRow)
             if(aggArr.length > 1) {
               putRow(rowMeta, aggArr(0))
@@ -82,12 +83,14 @@ class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta:
               lastRow = aggArr(0)
             }
           } else {
+            // Nothing to reduce... persist the last row and move on.
             // Write lastRow
             putRow(rowMeta, lastRow)
             lastRow = nextRow
             // 
           }
         } else {
+          putRow(rowMeta, lastRow)
           setOutputDone()
           return false
         }
@@ -103,13 +106,19 @@ class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta:
 
 class ReducerStepMeta extends BaseStepMeta with StepMetaInterface {
   var groupBy: String = ""
-  
-  def getStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta: TransMeta, trans: Trans) =
+
+  def getStep(smi: StepMeta, sdi : StepDataInterface, copyNr: Int, transMeta: TransMeta, trans: Trans) =
     new ReducerStep(smi, sdi, copyNr, transMeta, trans)
 
   def getStepData() = new ReducerStepData
 
-  def setDefault(): Unit = {  }
+  def setDefault(): Unit = {
+
+  }
+
+  override def clone(): Object = {
+    new Object
+  }
 
   // override def check(remarks: JList[CheckResultInterface], meta: TransMeta, stepMeta: StepMeta, prev: RowMetaInterface, input: Array[String], output: Array[String], info: RowMetaInterface) = {
   // }
@@ -121,7 +130,7 @@ class ReducerStepMeta extends BaseStepMeta with StepMetaInterface {
   //   logBasic("outgoing valueMeta:" + inputRowMeta.toString())
   // }
 
-   override def getXML() {
+   override def getXML(): String = {
      s"<settings><groupBy>${groupBy}</groupBy><outputField></outputField></settings>"
    }
 
