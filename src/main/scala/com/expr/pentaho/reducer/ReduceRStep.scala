@@ -16,16 +16,16 @@ object Reducer {
   def go(rowMeta: RowMetaInterface, agg: Array[Object], nxt: Array[Object]): Array[Array[Object]] = {
     val freqMaxIdx: Int = rowMeta.indexOfValue("max_freq")
     val freqMinIdx: Int = rowMeta.indexOfValue("min_freq")
-    
+
     var nextMin = rowMeta.getNumber(nxt, freqMinIdx)
     var nextMax = Option(rowMeta.getNumber(nxt, freqMaxIdx)).getOrElse(nextMin)
     var aggMin = rowMeta.getNumber(agg, freqMinIdx)
     var aggMax = Option(rowMeta.getNumber(agg, freqMaxIdx)).getOrElse(aggMin)
 
     var combined: Boolean = false
-    if(
+    if (
       (nextMin <= aggMax) &
-      (nextMax >= aggMin)) {
+        (nextMax >= aggMin)) {
       combined = true
 
       val min: java.lang.Double = math.min(aggMin, nextMin)
@@ -43,6 +43,7 @@ class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta:
   extends BaseStep(smi, sdi, copyNr, transMeta, trans) {
 
   def valOrNull(s: String) = if (s.isEmpty) null else s
+
   override def init(smi: StepMetaInterface, sdi: StepDataInterface) = {
     super.init(smi, sdi)
   }
@@ -59,24 +60,24 @@ class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta:
     // NOTE: Kettle already calls #processRow repeatedly in a `while` loop,
     //       but we are implementing our own to
     //       simplify inter-row state management.
-    while(true) {
-      if(first) {
+    while (true) {
+      if (first) {
         first = false
         // End loop here... nothing to reduce!
       } else {
         val nextRow = getRow()
-        if(nextRow != null) {
+        if (nextRow != null) {
           var grp = true
-          
+
           // Check if all group-by conditions are met
           for (i <- 0 until groupBys.length) {
             val gbIdx = rowMeta.indexOfValue(groupBys(i))
             grp &= rowMeta.getString(lastRow, gbIdx) == rowMeta.getString(nextRow, gbIdx)
           }
-          if(grp) {
+          if (grp) {
             // Now apply grouping transforms
             val aggArr: Array[Array[Object]] = Reducer.go(rowMeta, lastRow, nextRow)
-            if(aggArr.length > 1) {
+            if (aggArr.length > 1) {
               putRow(rowMeta, aggArr(0))
               lastRow = aggArr(1)
             } else {
@@ -98,7 +99,7 @@ class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta:
     }
     false
   }
-  
+
   override def dispose(smi: StepMetaInterface, sdi: StepDataInterface): Unit = {
     super.dispose(smi, sdi)
   }
@@ -107,7 +108,7 @@ class ReducerStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta:
 class ReducerStepMeta extends BaseStepMeta with StepMetaInterface {
   var groupBy: String = ""
 
-  def getStep(smi: StepMeta, sdi : StepDataInterface, copyNr: Int, transMeta: TransMeta, trans: Trans) =
+  def getStep(smi: StepMeta, sdi: StepDataInterface, copyNr: Int, transMeta: TransMeta, trans: Trans) =
     new ReducerStep(smi, sdi, copyNr, transMeta, trans)
 
   def getStepData() = new ReducerStepData
@@ -116,9 +117,9 @@ class ReducerStepMeta extends BaseStepMeta with StepMetaInterface {
 
   }
 
-  override def clone(): Object = {
-    new Object
-  }
+//  override def clone(): Object = {
+//    new Object
+//  }
 
   // override def check(remarks: JList[CheckResultInterface], meta: TransMeta, stepMeta: StepMeta, prev: RowMetaInterface, input: Array[String], output: Array[String], info: RowMetaInterface) = {
   // }
@@ -130,21 +131,21 @@ class ReducerStepMeta extends BaseStepMeta with StepMetaInterface {
   //   logBasic("outgoing valueMeta:" + inputRowMeta.toString())
   // }
 
-   override def getXML(): String = {
-     s"<settings><groupBy>${groupBy}</groupBy><outputField></outputField></settings>"
-   }
+  override def getXML(): String = {
+    s"<settings><groupBy>${groupBy}</groupBy><outputField></outputField></settings>"
+  }
 
-   override def loadXML(node: org.w3c.dom.Node, databases: JList[DatabaseMeta], counters: JMap[String, Counter]): Unit = {
-     println(s"Loading XML from $node")
-     import javax.xml.xpath._
-     val xpath = XPathFactory.newInstance.newXPath
-     groupBy = xpath.evaluate("//settings/groupBy", node)
-  //   projectId = xpath.evaluate("//settings/projectId", node)
-  //   queue = xpath.evaluate("//settings/queue", node)
-  //   outputField = xpath.evaluate("//settings/outputField", node)
+  override def loadXML(node: org.w3c.dom.Node, databases: JList[DatabaseMeta], counters: JMap[String, Counter]): Unit = {
+    println(s"Loading XML from $node")
+    import javax.xml.xpath._
+    val xpath = XPathFactory.newInstance.newXPath
+    groupBy = xpath.evaluate("//settings/groupBy", node)
+    //   projectId = xpath.evaluate("//settings/projectId", node)
+    //   queue = xpath.evaluate("//settings/queue", node)
+    //   outputField = xpath.evaluate("//settings/outputField", node)
 
-  //   println(s"Loaded params: token = $token, projectId = $projectId, queue = $queue, outputField = $outputField")
-   }
+    //   println(s"Loaded params: token = $token, projectId = $projectId, queue = $queue, outputField = $outputField")
+  }
 
   // override def readRep(rep: Repository, stepId: ObjectId, databases: JList[DatabaseMeta], counters: JMap[String, Counter]): Unit = {
   //   throw new UnsupportedOperationException("readRep")
